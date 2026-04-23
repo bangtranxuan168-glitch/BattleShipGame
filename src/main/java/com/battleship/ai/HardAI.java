@@ -4,137 +4,142 @@ import com.battleship.model.Board;
 import com.battleship.util.Constants;
 
 import java.awt.Point;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.List;
 import java.util.Random;
 
 /**
- * HardAI.java – Hunt-and-Target AI.
+ * HardAI.java – Smart Hunt-and-Target AI.
  *
  * Strategy:
- *  1. HUNT mode  – randomly fire until a hit is found.
- *  2. TARGET mode – once a hit is found, systematically fire at adjacent cells
- *     in the same direction until the ship sinks. Then revert to HUNT mode.
- *
- * This mimics how an experienced Battleship player thinks.
+ *  1. TARGET mode: Scan the board for active HIT cells (cells that belong to ships not yet SUNK).
+ *     - If 1 hit: Probe orthogonal neighbors.
+ *     - If >= 2 hits in a line: Extend the line at both ends.
+ *  2. HUNT mode: Checkerboard parity strategy to optimize search space.
  */
 public class HardAI extends EasyAI {
 
-    // ─── Fields ──────────────────────────────────────────────────────────────
+    private final Random random = new Random();
 
-    private final Random        random      = new Random();
-    private final Deque<Point>  targetQueue = new ArrayDeque<>();  // cells to try next
-    private Point               lastHit     = null;                // most recent hit
-    private Point               firstHit    = null;                // start of current ship hunt
-    private boolean             dirLocked   = false;               // direction confirmed?
-    private int                 dirRow      = 0;                   // direction vector row
-    private int                 dirCol      = 0;                   // direction vector col
-
-    // ─── Public API ──────────────────────────────────────────────────────────
-
-    /**
-     * Chooses the next shot using hunt-and-target strategy.
-     */
     @Override
     public Point chooseShot(Board playerBoard) {
-        // ── TARGET mode: drain the target queue ──────────────────────────────
-        while (!targetQueue.isEmpty()) {
-            Point candidate = targetQueue.poll();
-            int r = candidate.x, c = candidate.y;
-            if (r >= 0 && r < playerBoard.getSize()
-                    && c >= 0 && c < playerBoard.getSize()
-                    && !playerBoard.isAlreadyFired(r, c)) {
-                return candidate;
+        List<Point> activeHits = new ArrayList<>();
+        int size = playerBoard.getSize();
+
+        // Find all active hits on the board
+        for (int r = 0; r < size; r++) {
+            for (int c = 0; c < size; c++) {
+                if (playerBoard.getCell(r, c) == Constants.HIT) {
+                    activeHits.add(new Point(r, c));
+                }
             }
         }
 
-        // ── HUNT mode: random shot ────────────────────────────────────────────
+        // ── TARGET mode ──────────────────────────────────────────────
+        if (!activeHits.isEmpty()) {
+            List<Point> potentialTargets = new ArrayList<>();
+
+            if (activeHits.size() == 1) {
+                addValidNeighbors(activeHits.get(0), playerBoard, potentialTargets);
+            } else {
+                // Try to extend lines formed by multiple hits
+                for (int i = 0; i < activeHits.size(); i++) {
+                    for (int j = i + 1; j < activeHits.size(); j++) {
+                        Point p1 = activeHits.get(i);
+                        Point p2 = activeHits.get(j);
+
+                        if (p1.x == p2.x) { // Horizontal line
+                            int minCol = Math.min(p1.y, p2.y);
+                            int maxCol = Math.max(p1.y, p2.y);
+                            if (minCol - 1 >= 0 && !playerBoard.isAlreadyFired(p1.x, minCol - 1)) {
+                                potentialTargets.add(new Point(p1.x, minCol - 1));
+                            }
+                            if (maxCol + 1 < size && !playerBoard.isAlreadyFired(p1.x, maxCol + 1)) {
+                                potentialTargets.add(new Point(p1.x, maxCol + 1));
+                            }
+                        }
+                        if (p1.y == p2.y) { // Vertical line
+                            int minRow = Math.min(p1.x, p2.x);
+                            int maxRow = Math.max(p1.x, p2.x);
+                            if (minRow - 1 >= 0 && !playerBoard.isAlreadyFired(minRow - 1, p1.y)) {
+                                potentialTargets.add(new Point(minRow - 1, p1.y));
+                            }
+                            if (maxRow + 1 < size && !playerBoard.isAlreadyFired(maxRow + 1, p1.y)) {
+                                potentialTargets.add(new Point(maxRow + 1, p1.y));
+                            }
+                        }
+                    }
+                }
+                
+                // Fallback: If no lines could be extended (e.g. diagonal hits, or blocked lines),
+                // probe neighbors of all active hits
+                if (potentialTargets.isEmpty()) {
+                    for (Point p : activeHits) {
+                        addValidNeighbors(p, playerBoard, potentialTargets);
+                    }
+                }
+            }
+
+            if (!potentialTargets.isEmpty()) {
+                return potentialTargets.get(random.nextInt(potentialTargets.size()));
+            }
+        }
+
+        // ── HUNT mode: Checkerboard parity strategy ───────────────────────────
         List<Point> available = getAvailableCells(playerBoard);
         if (available.isEmpty()) return new Point(0, 0);
+
+        List<Point> parityCells = new ArrayList<>();
+        for (Point p : available) {
+            if ((p.x + p.y) % 2 == 0) {
+                boolean hasMissNeighbors = false;
+                int[][] dirs = {{-1,0}, {1,0}, {0,-1}, {0,1}};
+                for (int[] d : dirs) {
+                    int nr = p.x + d[0], nc = p.y + d[1];
+                    if (nr >= 0 && nr < size && nc >= 0 && nc < size) {
+                        if (playerBoard.getCell(nr, nc) == Constants.MISS) {
+                            hasMissNeighbors = true;
+                            break;
+                        }
+                    }
+                }
+                if (!hasMissNeighbors) {
+                    parityCells.add(p);
+                }
+            }
+        }
+
+        if (!parityCells.isEmpty()) {
+            return parityCells.get(random.nextInt(parityCells.size()));
+        }
+
+        List<Point> allParity = new ArrayList<>();
+        for (Point p : available) {
+            if ((p.x + p.y) % 2 == 0) allParity.add(p);
+        }
+        if (!allParity.isEmpty()) {
+            return allParity.get(random.nextInt(allParity.size()));
+        }
+
         return available.get(random.nextInt(available.size()));
     }
 
+    private void addValidNeighbors(Point p, Board board, List<Point> targets) {
+        int[][] dirs = {{-1,0}, {1,0}, {0,-1}, {0,1}};
+        for (int[] d : dirs) {
+            int r = p.x + d[0], c = p.y + d[1];
+            if (r >= 0 && r < board.getSize() && c >= 0 && c < board.getSize()) {
+                if (!board.isAlreadyFired(r, c)) {
+                    targets.add(new Point(r, c));
+                }
+            }
+        }
+    }
+
     /**
-     * Must be called after every shot resolves so the AI can update its state.
-     *
-     * @param row    row of the shot
-     * @param col    column of the shot
-     * @param wasHit true if the shot hit a ship
-     * @param wasSunk true if the hit sank the ship
+     * Stateless AI no longer needs to track shot results manually.
      */
     public void onShotResult(int row, int col, boolean wasHit, boolean wasSunk) {
-        if (wasSunk) {
-            // Ship sunk → clear all targeting state, return to HUNT
-            resetTargeting();
-            return;
-        }
-
-        if (wasHit) {
-            Point hitPoint = new Point(row, col);
-
-            if (firstHit == null) {
-                // First hit on a new ship – add orthogonal neighbors to queue
-                firstHit = hitPoint;
-                lastHit  = hitPoint;
-                dirLocked = false;
-                addOrthogonalNeighbors(row, col);
-            } else {
-                // Subsequent hit – lock direction and continue along that axis
-                if (!dirLocked) {
-                    // Determine direction from firstHit → current hit
-                    dirRow = row - firstHit.x;
-                    dirCol = col - firstHit.y;
-                    // Normalize to unit step
-                    if (dirRow != 0) dirRow = dirRow / Math.abs(dirRow);
-                    if (dirCol != 0) dirCol = dirCol / Math.abs(dirCol);
-                    dirLocked = true;
-                }
-
-                // Flood targets in the locked direction (both forward + backward from firstHit)
-                targetQueue.clear();
-                enqueueLinear(row, col, dirRow, dirCol);             // continue forward
-                enqueueLinear(firstHit.x, firstHit.y, -dirRow, -dirCol); // try reverse
-            }
-
-            lastHit = hitPoint;
-        }
-        // If miss and we have a locked direction, the ship doesn't extend further that way.
-        // The queue already has cells in the opposite direction, so no action needed.
-    }
-
-    // ─── Internal helpers ────────────────────────────────────────────────────
-
-    /** Queues the four orthogonal neighbors of (row, col). */
-    private void addOrthogonalNeighbors(int row, int col) {
-        targetQueue.add(new Point(row - 1, col));
-        targetQueue.add(new Point(row + 1, col));
-        targetQueue.add(new Point(row, col - 1));
-        targetQueue.add(new Point(row, col + 1));
-    }
-
-    /**
-     * Enqueues cells starting from (startRow+dr, startCol+dc) and continuing
-     * in the direction of (dr, dc) up to the board boundary.
-     */
-    private void enqueueLinear(int startRow, int startCol, int dr, int dc) {
-        int r = startRow + dr;
-        int c = startCol + dc;
-        while (r >= 0 && r < Constants.GRID_SIZE && c >= 0 && c < Constants.GRID_SIZE) {
-            targetQueue.addFirst(new Point(r, c));
-            r += dr;
-            c += dc;
-        }
-    }
-
-    /** Clears all targeting state (called after sinking a ship). */
-    private void resetTargeting() {
-        targetQueue.clear();
-        firstHit  = null;
-        lastHit   = null;
-        dirLocked = false;
-        dirRow    = 0;
-        dirCol    = 0;
+        // No-op
     }
 }

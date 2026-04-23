@@ -46,7 +46,12 @@ public class GameController {
         this.state = GameState.SETUP;
         if (hardMode) { hardAI = new HardAI(); easyAI = null; }
         else { easyAI = new EasyAI(); hardAI = null; }
-        placeAIShipsRandom();
+        
+        if (hardMode) {
+            placeAIShipsHard();
+        } else {
+            placeAIShipsRandom();
+        }
         showScreen(Constants.SCREEN_SETUP);
     }
 
@@ -66,6 +71,49 @@ public class GameController {
                     placed = true;
                 }
             }
+        }
+    }
+
+    public void placeAIShipsHard() {
+        aiPlayer.getBoard().reset();
+        for (Ship ship : aiPlayer.getShips()) ship.reset();
+        
+        int preset = new Random().nextInt(4);
+        int[][][] presets = {
+            // Preset 0: Borderline (Cạnh biên)
+            // {row, col, isHorizontal(1/0)}
+            { {0, 0, 1}, {2, 9, 0}, {4, 1, 0}, {9, 0, 1}, {9, 5, 1} },
+            // Preset 1: Maximum Dispersion (Phân tán tối đa)
+            { {0, 2, 1}, {6, 1, 1}, {3, 0, 1}, {1, 8, 0}, {7, 9, 0} },
+            // Preset 2: Tiny Bait (Tàu nhỏ ẩn danh)
+            { {0, 1, 1}, {1, 1, 1}, {2, 1, 1}, {6, 8, 0}, {7, 3, 0} },
+            // Preset 3: Asymmetric (Bất đối xứng)
+            { {0, 1, 0}, {2, 2, 0}, {6, 0, 1}, {8, 0, 1}, {9, 1, 1} }
+        };
+        
+        int[][] selectedPreset = presets[preset];
+        java.util.List<Ship> ships = aiPlayer.getShips();
+        boolean success = true;
+        
+        for (int i = 0; i < ships.size(); i++) {
+            Ship ship = ships.get(i);
+            int[] pos = selectedPreset[i];
+            int row = pos[0];
+            int col = pos[1];
+            boolean h = (pos[2] == 1);
+            
+            if (aiPlayer.getBoard().canPlaceShip(row, col, ship.getSize(), h)) {
+                ship.place(row, col, h);
+                aiPlayer.getBoard().placeShip(ship);
+            } else {
+                success = false;
+                break;
+            }
+        }
+        
+        if (!success) {
+            System.err.println("Preset " + preset + " failed to place. Falling back to random.");
+            placeAIShipsRandom();
         }
     }
 
@@ -155,7 +203,17 @@ public class GameController {
         state = GameState.MENU;
         if (onShowMenu != null) onShowMenu.run();
     }
-    public void rematch() { humanPlayer.reset(); aiPlayer.reset(); placeAIShipsRandom(); state = GameState.SETUP; showScreen(Constants.SCREEN_SETUP); }
+    public void rematch() { 
+        humanPlayer.reset(); 
+        aiPlayer.reset(); 
+        if (hardMode) {
+            placeAIShipsHard();
+        } else {
+            placeAIShipsRandom();
+        }
+        state = GameState.SETUP; 
+        showScreen(Constants.SCREEN_SETUP); 
+    }
 
     public Player getHumanPlayer() { return humanPlayer; }
     public Player getAiPlayer() { return aiPlayer; }
