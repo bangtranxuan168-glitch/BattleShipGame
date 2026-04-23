@@ -73,6 +73,25 @@ public class Constants {
     public static final Font FONT_CELL      = new Font("Arial", Font.BOLD, 18);
     public static final Font FONT_SMALL     = new Font("Arial", Font.PLAIN, 11);
 
+    // Emoji font – Segoe UI Emoji is available on Windows 8+.
+    // Falls back to "Dialog" (Java composite font) which also covers emoji on most JREs.
+    public static final Font FONT_EMOJI     = resolveEmojiFont(24);
+
+    /** Returns an emoji-capable font at the requested size. */
+    public static Font emojiFont(float size) {
+        java.awt.GraphicsEnvironment ge = java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment();
+        java.util.Arrays.stream(ge.getAvailableFontFamilyNames())
+                .filter(f -> f.equalsIgnoreCase("Segoe UI Emoji"))
+                .findFirst();
+        boolean hasSegoe = java.util.Arrays.asList(ge.getAvailableFontFamilyNames())
+                                           .contains("Segoe UI Emoji");
+        return new Font(hasSegoe ? "Segoe UI Emoji" : "Dialog", Font.PLAIN, (int) size);
+    }
+
+    private static Font resolveEmojiFont(int size) {
+        return emojiFont(size);
+    }
+
     // ─── ANIMATION ───────────────────────────────────────────────────────────
     public static final int AI_DELAY_MS    = 1000;   // ms before AI fires
     public static final int ANIM_FRAMES   = 6;       // hit animation frames
