@@ -26,13 +26,14 @@ public class GameController {
     private EasyAI easyAI;
     private HardAI hardAI;
 
-    private Runnable onPlayerTurnStart;
+    private Consumer<Boolean> onPlayerTurnStart;
     private Runnable onAiTurnStart;
     private Runnable onBoardUpdate;
     private Consumer<Boolean> onGameOver;
     private Runnable onShowSetup;
     private Runnable onShowGame;
     private Consumer<Boolean> onShowResult;
+    private Runnable onShowMenu;
 
     public GameController(SoundManager sound) {
         this.sound = sound;
@@ -71,7 +72,7 @@ public class GameController {
     public void onSetupComplete() {
         state = GameState.PLAYER_TURN;
         showScreen(Constants.SCREEN_GAME);
-        if (onPlayerTurnStart != null) onPlayerTurnStart.run();
+        if (onPlayerTurnStart != null) onPlayerTurnStart.accept(false);
     }
 
     public boolean playerFire(int row, int col) {
@@ -86,12 +87,19 @@ public class GameController {
                 hitShip.hit();
                 if (hitShip.isSunk()) { sound.playSunk(); aiPlayer.getBoard().markSunk(hitShip); }
             }
-            if (aiPlayer.allShipsSunk()) { state = GameState.PLAYER_WIN; if (onBoardUpdate != null) onBoardUpdate.run(); endGame(true); return true; }
         } else sound.playMiss();
+
         if (onBoardUpdate != null) onBoardUpdate.run();
-        state = GameState.AI_TURN;
-        if (onAiTurnStart != null) onAiTurnStart.run();
-        scheduleAITurn();
+
+        if (aiPlayer.allShipsSunk()) { state = GameState.PLAYER_WIN; endGame(true); return true; }
+
+        if (hit) {
+            if (onPlayerTurnStart != null) onPlayerTurnStart.accept(true);
+        } else {
+            state = GameState.AI_TURN;
+            if (onAiTurnStart != null) onAiTurnStart.run();
+            scheduleAITurn();
+        }
         return true;
     }
 
@@ -115,11 +123,18 @@ public class GameController {
                 if (hitShip.isSunk()) { sunk = true; sound.playSunk(); humanPlayer.getBoard().markSunk(hitShip); }
             }
         } else sound.playMiss();
+
         if (hardAI != null) hardAI.onShotResult(row, col, hit, sunk);
         if (onBoardUpdate != null) onBoardUpdate.run();
+
         if (humanPlayer.allShipsSunk()) { state = GameState.AI_WIN; endGame(false); return; }
-        state = GameState.PLAYER_TURN;
-        if (onPlayerTurnStart != null) onPlayerTurnStart.run();
+
+        if (hit) {
+            scheduleAITurn();
+        } else {
+            state = GameState.PLAYER_TURN;
+            if (onPlayerTurnStart != null) onPlayerTurnStart.accept(false);
+        }
     }
 
     private void endGame(boolean playerWon) {
@@ -138,7 +153,7 @@ public class GameController {
 
     public void goToMenu() {
         state = GameState.MENU;
-        if (onShowSetup != null) onShowSetup.run();
+        if (onShowMenu != null) onShowMenu.run();
     }
     public void rematch() { humanPlayer.reset(); aiPlayer.reset(); placeAIShipsRandom(); state = GameState.SETUP; showScreen(Constants.SCREEN_SETUP); }
 
@@ -148,7 +163,8 @@ public class GameController {
     public boolean isHardMode() { return hardMode; }
     public SoundManager getSound() { return sound; }
 
-    public void setOnPlayerTurnStart(Runnable cb) { this.onPlayerTurnStart = cb; }
+    public void setOnShowMenu(Runnable cb) { this.onShowMenu = cb; }
+    public void setOnPlayerTurnStart(Consumer<Boolean> cb) { this.onPlayerTurnStart = cb; }
     public void setOnAiTurnStart(Runnable cb) { this.onAiTurnStart = cb; }
     public void setOnBoardUpdate(Runnable cb) { this.onBoardUpdate = cb; }
     public void setOnGameOver(Consumer<Boolean> cb) { this.onGameOver = cb; }

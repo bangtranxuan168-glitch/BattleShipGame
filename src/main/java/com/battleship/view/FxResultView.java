@@ -22,7 +22,12 @@ public class FxResultView extends BorderPane {
     public FxResultView(GameController controller) {
         this.controller = controller;
         setPadding(new Insets(20));
-        setStyle("-fx-background-color: transparent;");
+        java.net.URL bgUrl = getClass().getResource("/ui/menu/setup_bg.png");
+        if (bgUrl != null) {
+            setStyle("-fx-background-image: url('" + bgUrl.toExternalForm() + "'); -fx-background-size: cover; -fx-background-position: center;");
+        } else {
+            setStyle("-fx-background-color: transparent;");
+        }
         buildUi();
     }
 

@@ -53,7 +53,12 @@ public class FxGameView extends BorderPane {
     public FxGameView(GameController controller) {
         this.controller = controller;
         setPadding(new Insets(16));
-        setStyle("-fx-background-color: transparent;");
+        java.net.URL bgUrl = getClass().getResource("/ui/menu/setup_bg.png");
+        if (bgUrl != null) {
+            setStyle("-fx-background-image: url('" + bgUrl.toExternalForm() + "'); -fx-background-size: cover; -fx-background-position: center;");
+        } else {
+            setStyle("-fx-background-color: linear-gradient(to bottom, #081322, #0A1628);");
+        }
         buildUi();
         refresh();
 
@@ -62,10 +67,15 @@ public class FxGameView extends BorderPane {
             drawBoards();
         }));
 
-        controller.setOnPlayerTurnStart(() -> javafx.application.Platform.runLater(() -> {
+        controller.setOnPlayerTurnStart((isHitAgain) -> javafx.application.Platform.runLater(() -> {
             enemyClickable = true;
-            statusLabel.setText("⚔ LƯỢT CỦA BẠN – Chọn ô để bắn!");
-            statusLabel.setStyle("-fx-background-color: rgba(21,101,192,0.85); -fx-background-radius: 14;");
+            if (isHitAgain) {
+                statusLabel.setText("💥 BẮN TRÚNG! Bạn được bắn tiếp!");
+                statusLabel.setStyle("-fx-background-color: rgba(46,125,50,0.85); -fx-background-radius: 14;");
+            } else {
+                statusLabel.setText("⚔ LƯỢT CỦA BẠN – Chọn ô để bắn!");
+                statusLabel.setStyle("-fx-background-color: rgba(21,101,192,0.85); -fx-background-radius: 14;");
+            }
             drawBoards();
         }));
 
@@ -210,20 +220,98 @@ public class FxGameView extends BorderPane {
         enemyShipsLabel.setText("💥 Tàu địch còn: " + aAlive + "/" + ai.getShips().size());
     }
 
-    private void drawBoards() {
-        if (controller.getHumanPlayer() == null || controller.getAiPlayer() == null) return;
-        drawBoard(playerGrid, controller.getHumanPlayer().getBoard(), false);
-        drawBoard(enemyGrid, controller.getAiPlayer().getBoard(), true);
+    private Node createShipGraphic(int size, boolean isHorizontal, double cellSize, boolean isPreview, boolean isValid) {
+        double length = size * cellSize;
+        double thickness = cellSize;
+        
+        StackPane innerPane = new StackPane();
+        innerPane.setPrefSize(length, thickness);
+        innerPane.setMinSize(length, thickness);
+        innerPane.setMaxSize(length, thickness);
+
+        java.net.URL imgUrl = getClass().getResource("/ui/menu/tau" + size + ".png");
+        if (imgUrl != null) {
+            javafx.scene.image.ImageView iv = new javafx.scene.image.ImageView(new javafx.scene.image.Image(imgUrl.toExternalForm()));
+            iv.setFitWidth(length);
+            iv.setFitHeight(thickness);
+            innerPane.getChildren().add(iv);
+        } else {
+            // Procedural hull fallback
+            javafx.scene.shape.Rectangle hull = new javafx.scene.shape.Rectangle(length - cellSize*0.15, thickness - cellSize*0.15);
+            hull.setArcWidth(cellSize * 0.8);
+            hull.setArcHeight(cellSize * 0.8);
+            
+            Color baseColor = Color.web("#90A4AE");
+            if (isPreview) baseColor = isValid ? Color.web("#81C784") : Color.web("#E57373");
+            
+            hull.setFill(new javafx.scene.paint.LinearGradient(0, 0, 1, 1, true, javafx.scene.paint.CycleMethod.NO_CYCLE, 
+                new javafx.scene.paint.Stop(0, baseColor.brighter()), 
+                new javafx.scene.paint.Stop(1, baseColor.darker())));
+            hull.setStroke(Color.web("#455A64"));
+            hull.setStrokeWidth(cellSize * 0.05);
+            
+            javafx.scene.shape.Rectangle bridge = new javafx.scene.shape.Rectangle(length * 0.25, thickness * 0.5);
+            bridge.setFill(Color.web("#546E7A"));
+            bridge.setArcWidth(cellSize * 0.2); 
+            bridge.setArcHeight(cellSize * 0.2);
+
+            javafx.scene.shape.Circle turret1 = new javafx.scene.shape.Circle(cellSize * 0.15, Color.web("#37474F"));
+            javafx.scene.shape.Circle turret2 = new javafx.scene.shape.Circle(cellSize * 0.15, Color.web("#37474F"));
+            
+            innerPane.getChildren().addAll(hull, bridge, turret1, turret2);
+            StackPane.setAlignment(turret1, Pos.CENTER_LEFT);
+            StackPane.setAlignment(turret2, Pos.CENTER_RIGHT);
+            StackPane.setMargin(turret1, new Insets(0, 0, 0, cellSize * 0.4));
+            StackPane.setMargin(turret2, new Insets(0, cellSize * 0.4, 0, 0));
+        }
+
+        if (isPreview) {
+            innerPane.setOpacity(0.8);
+            if (!isValid && imgUrl != null) {
+                javafx.scene.shape.Rectangle tint = new javafx.scene.shape.Rectangle(length, thickness);
+                tint.setFill(Color.web("#FF0000", 0.4));
+                tint.setArcWidth(cellSize * 0.8); tint.setArcHeight(cellSize * 0.8);
+                innerPane.getChildren().add(tint);
+            }
+        } else {
+            innerPane.setEffect(new javafx.scene.effect.DropShadow(4, Color.color(0,0,0,0.5)));
+        }
+
+        javafx.scene.Group wrapper = new javafx.scene.Group(innerPane);
+        if (!isHorizontal) {
+            innerPane.setRotate(90);
+        }
+        
+        StackPane finalPane = new StackPane(wrapper);
+        double finalW = isHorizontal ? length : thickness;
+        double finalH = isHorizontal ? thickness : length;
+        finalPane.setPrefSize(finalW, finalH);
+        finalPane.setMinSize(finalW, finalH);
+        finalPane.setMaxSize(finalW, finalH);
+        finalPane.setMouseTransparent(true);
+        
+        return finalPane;
     }
 
-    private void drawBoard(GridPane grid, Board board, boolean enemy) {
+    private void drawBoards() {
+        if (controller.getHumanPlayer() == null || controller.getAiPlayer() == null) return;
+        drawBoard(playerGrid, controller.getHumanPlayer(), false);
+        drawBoard(enemyGrid, controller.getAiPlayer(), true);
+    }
+
+    private void drawBoard(GridPane grid, Player player, boolean enemy) {
+        Board board = player.getBoard();
+        grid.getChildren().removeIf(node -> "SHIP_GRAPHIC".equals(node.getId()));
+        
         int[][] cells = board.getGrid();
         for (Node node : grid.getChildren()) {
+            if ("SHIP_GRAPHIC".equals(node.getId())) continue;
             int[] rc = (int[]) node.getUserData();
+            if (rc == null) continue;
             int r = rc[0];
             int c = rc[1];
             int state = cells[r][c];
-            if (enemy && state == Constants.SHIP) state = Constants.EMPTY;
+            if ((enemy || true) && state == Constants.SHIP) state = Constants.EMPTY; // Always draw cells as ocean, ships are overlaid
 
             boolean hover = enemy && enemyClickable && hoverRow == r && hoverCol == c && !board.isAlreadyFired(r, c);
             String key = r + ":" + c;
@@ -235,13 +323,14 @@ public class FxGameView extends BorderPane {
             if (node instanceof StackPane) {
                 StackPane pane = (StackPane) node;
                 pane.getChildren().clear();
-                if (state == Constants.HIT || state == Constants.SUNK) {
+                if (cells[r][c] == Constants.HIT || cells[r][c] == Constants.SUNK) { // Must check true state, not masked state
                     Label mark = new Label("✕");
                     mark.setTextFill(Color.WHITE);
-                    mark.setFont(Font.font("System", FontWeight.EXTRA_BOLD, 18));
+                    mark.setFont(Font.font("System", FontWeight.BOLD, 18 + (anim >= 0 ? 8 : 0)));
+                    if (anim >= 0) mark.setRotate((anim * 15) % 360);
                     pane.getChildren().add(mark);
-                } else if (state == Constants.MISS) {
-                    Circle dot = new Circle(5, Color.web("#B0BEC5"));
+                } else if (cells[r][c] == Constants.MISS) {
+                    Circle dot = new Circle(4 + (anim >= 0 ? 2 : 0), Color.web("#90A4AE"));
                     pane.getChildren().add(dot);
                 }
 
@@ -251,6 +340,33 @@ public class FxGameView extends BorderPane {
                     pulse.setStrokeWidth(2);
                     pane.getChildren().add(pulse);
                 }
+            }
+        }
+        
+        double cellSize = Constants.CELL_SIZE;
+        for (Ship ship : player.getShips()) {
+            if (ship.isPlaced()) {
+                // If enemy, only show SUNK ships. If player, show all placed ships.
+                if (enemy && !ship.isSunk()) continue;
+                
+                Node shipGraphic = createShipGraphic(ship.getSize(), ship.isHorizontal(), cellSize, false, true);
+                shipGraphic.setId("SHIP_GRAPHIC");
+                GridPane.setRowIndex(shipGraphic, ship.getRow());
+                GridPane.setColumnIndex(shipGraphic, ship.getCol());
+                if (ship.isHorizontal()) {
+                    GridPane.setColumnSpan(shipGraphic, ship.getSize());
+                    GridPane.setRowSpan(shipGraphic, 1);
+                } else {
+                    GridPane.setRowSpan(shipGraphic, ship.getSize());
+                    GridPane.setColumnSpan(shipGraphic, 1);
+                }
+                
+                if (ship.isSunk()) {
+                    shipGraphic.setEffect(new javafx.scene.effect.ColorAdjust(0, -0.8, -0.4, 0)); // Darken sunken ships
+                }
+                
+                grid.getChildren().add(shipGraphic);
+                shipGraphic.toBack(); // keep below hit markers
             }
         }
     }

@@ -96,13 +96,36 @@ public class FxLauncher extends Application {
         mediaPlayer = new MediaPlayer(media);
         mediaPlayer.setCycleCount(MediaPlayer.INDEFINITE);
         mediaPlayer.setMute(true);
+        
+        mediaPlayer.setOnError(() -> {
+            System.err.println("Video Error: " + mediaPlayer.getError());
+            // Retry playing
+            javafx.application.Platform.runLater(() -> {
+                if (mediaPlayer.getStatus() != MediaPlayer.Status.PLAYING) {
+                    mediaPlayer.play();
+                }
+            });
+        });
 
         MediaView view = new MediaView(mediaPlayer);
         view.setPreserveRatio(true);
         view.setSmooth(true);
 
-        StackPane wrap = new StackPane(view);
-        wrap.setStyle("-fx-background-color: #0A1628;");
+        URL imgUrl = getClass().getResource("/ui/menu/bg.png");
+        Node fallbackBg;
+        if (imgUrl != null) {
+            ImageView iv = new ImageView(new Image(imgUrl.toExternalForm()));
+            iv.setFitWidth(Constants.WINDOW_WIDTH);
+            iv.setFitHeight(Constants.WINDOW_HEIGHT);
+            iv.setPreserveRatio(false);
+            fallbackBg = iv;
+        } else {
+            Region bgReg = new Region();
+            bgReg.setStyle("-fx-background-color: #0A1628;");
+            fallbackBg = bgReg;
+        }
+
+        StackPane wrap = new StackPane(fallbackBg, view);
         Rectangle clip = new Rectangle();
         clip.widthProperty().bind(wrap.widthProperty());
         clip.heightProperty().bind(wrap.heightProperty());
@@ -451,7 +474,6 @@ public class FxLauncher extends Application {
     }
 
     private void startGame(Stage stage, boolean hardMode) {
-        if (mediaPlayer != null) mediaPlayer.stop();
         showMenu(false);
 
         // Sử dụng globalSound đã khởi tạo thay vì tạo mới
@@ -462,6 +484,10 @@ public class FxLauncher extends Application {
         gameView = new FxGameView(controller);
         resultView = new FxResultView(controller);
 
+        controller.setOnShowMenu(() -> Platform.runLater(() -> {
+            root.setCenter(null);
+            showMenu(true);
+        }));
         controller.setOnShowSetup(() -> Platform.runLater(() -> root.setCenter(setupView)));
         controller.setOnShowGame(() -> Platform.runLater(() -> root.setCenter(gameView)));
         controller.setOnShowResult(won -> Platform.runLater(() -> resultView.showResult(won)));

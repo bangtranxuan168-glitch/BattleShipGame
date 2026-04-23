@@ -97,6 +97,13 @@ public class Ship {
     public int          getHits()       { return hits; }
     public boolean      isPlaced()      { return placed; }
 
+    public int getRow() { return positions.isEmpty() ? -1 : positions.get(0).x; }
+    public int getCol() { return positions.isEmpty() ? -1 : positions.get(0).y; }
+    public boolean isHorizontal() {
+        if (positions.size() < 2) return true;
+        return positions.get(0).x == positions.get(1).x;
+    }
+
     @Override
     public String toString() {
         return String.format("Ship[%s, size=%d, hits=%d/%d, sunk=%b]",
