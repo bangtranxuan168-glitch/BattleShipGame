@@ -50,11 +50,10 @@ public class FxGameView extends BorderPane {
     private int hoverRow = -1;
     private int hoverCol = -1;
 
-    private MediaPlayer bgPlayer;
-
     public FxGameView(GameController controller) {
         this.controller = controller;
         setPadding(new Insets(16));
+        setStyle("-fx-background-color: transparent;");
         buildUi();
         refresh();
 
@@ -90,46 +89,8 @@ public class FxGameView extends BorderPane {
     }
 
     private void buildUi() {
-        StackPane bg = buildBackground();
         VBox content = buildContent();
-        StackPane root = new StackPane(bg, content);
-        setCenter(root);
-    }
-
-    private StackPane buildBackground() {
-        URL videoUrl = getClass().getResource("/ui/menu/videobg.mp4");
-        if (videoUrl == null) videoUrl = getClass().getResource("/ui/menu/bg.mp4");
-        if (videoUrl == null) videoUrl = getClass().getResource("/ui/menu/Tao_Video_Theo_Yeu_Cau.mp4");
-
-        Region fallback = new Region();
-        fallback.setStyle("-fx-background-color: linear-gradient(to bottom, #081322, #0A1628);");
-        fallback.setMinSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
-
-        if (videoUrl == null) {
-            StackPane pane = new StackPane(fallback);
-            pane.setPickOnBounds(false);
-            return pane;
-        }
-
-        Media media = new Media(videoUrl.toExternalForm());
-        bgPlayer = new MediaPlayer(media);
-        bgPlayer.setMute(true);
-        bgPlayer.setCycleCount(MediaPlayer.INDEFINITE);
-        bgPlayer.setOnEndOfMedia(() -> {
-            bgPlayer.seek(Duration.ZERO);
-            bgPlayer.play();
-        });
-
-        MediaView view = new MediaView(bgPlayer);
-        view.setPreserveRatio(true);
-        view.fitWidthProperty().bind(Bindings.selectDouble(view.parentProperty(), "layoutBounds").multiply(1));
-
-        StackPane pane = new StackPane(view, fallback);
-        view.fitWidthProperty().bind(pane.widthProperty());
-        view.fitHeightProperty().bind(pane.heightProperty());
-        bgPlayer.setOnReady(bgPlayer::play);
-        pane.setPickOnBounds(false);
-        return pane;
+        setCenter(content);
     }
 
     private VBox buildContent() {

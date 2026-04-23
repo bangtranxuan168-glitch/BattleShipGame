@@ -22,7 +22,7 @@ public class FxResultView extends BorderPane {
     public FxResultView(GameController controller) {
         this.controller = controller;
         setPadding(new Insets(20));
-        setStyle("-fx-background-color: linear-gradient(to bottom, #081322, #0A1628);");
+        setStyle("-fx-background-color: transparent;");
         buildUi();
     }
 

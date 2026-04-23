@@ -38,7 +38,7 @@ public class FxSetupView extends BorderPane {
     public FxSetupView(GameController controller) {
         this.controller = controller;
         setPadding(new Insets(16));
-        setStyle("-fx-background-color: linear-gradient(to bottom, #0A1628, #0D2137);");
+        setStyle("-fx-background-color: transparent;");
         setFocusTraversable(true);
 
         buildUi();

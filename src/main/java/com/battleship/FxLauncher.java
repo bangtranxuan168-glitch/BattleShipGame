@@ -78,6 +78,14 @@ public class FxLauncher extends Application {
         if (videoUrl == null) videoUrl = getClass().getResource("/ui/menu/bg.mp4");
         if (videoUrl == null) videoUrl = getClass().getResource("/ui/menu/Tao_Video_Theo_Yeu_Cau.mp4");
         if (videoUrl == null) {
+            URL imgUrl = getClass().getResource("/ui/menu/bg.png");
+            if (imgUrl != null) {
+                ImageView iv = new ImageView(new Image(imgUrl.toExternalForm()));
+                iv.setFitWidth(Constants.WINDOW_WIDTH);
+                iv.setFitHeight(Constants.WINDOW_HEIGHT);
+                iv.setPreserveRatio(false);
+                return iv;
+            }
             Region fallback = new Region();
             fallback.setPrefSize(Constants.WINDOW_WIDTH, Constants.WINDOW_HEIGHT);
             fallback.setBackground(new Background(new BackgroundFill(Color.web("#0A1628"), null, null)));
@@ -135,8 +143,8 @@ public class FxLauncher extends Application {
 
         StackPane easy = imageButton("/ui/menu/btn_easy.png", 300, 105);
         StackPane hard = imageButton("/ui/menu/btn_hard.png", 300, 105);
-        easy.setOnMouseClicked(e -> startGame(stage, false));
-        hard.setOnMouseClicked(e -> startGame(stage, true));
+        easy.setOnMouseClicked(e -> { globalSound.playClick(); startGame(stage, false); });
+        hard.setOnMouseClicked(e -> { globalSound.playClick(); startGame(stage, true); });
 
         addHoverScale(easy, 1.06);
         addHoverScale(hard, 1.06);
@@ -152,8 +160,8 @@ public class FxLauncher extends Application {
         addHoverScale(help, 1.06);
         addPressScale(settings, 1.08);
         addPressScale(help, 1.08);
-        settings.setOnMouseClicked(e -> showSettingsDialog(stage));
-        help.setOnMouseClicked(e -> showHelpPages(stage));
+        settings.setOnMouseClicked(e -> { globalSound.playClick(); showSettingsDialog(stage); });
+        help.setOnMouseClicked(e -> { globalSound.playClick(); showHelpPages(stage); });
 
         HBox secondaryRow = new HBox(8, settings, help);
         secondaryRow.setAlignment(Pos.CENTER);
@@ -239,8 +247,7 @@ public class FxLauncher extends Application {
         Stage dialog = new Stage();
         dialog.initOwner(owner);
         dialog.initModality(javafx.stage.Modality.APPLICATION_MODAL);
-        dialog.setTitle("Cài đặt");
-        dialog.setResizable(false);
+        dialog.initStyle(javafx.stage.StageStyle.TRANSPARENT);
 
         // ── Load ảnh ──────────────────────────────────────────────────
         Image imgSoundOn  = new Image(getClass().getResourceAsStream("/ui/menu/sound_onl.png"));
@@ -249,9 +256,9 @@ public class FxLauncher extends Application {
         Image imgClose    = new Image(getClass().getResourceAsStream("/ui/menu/btn_close.png"));
 
         // ── Nút Âm thanh (swap ảnh khi click) ────────────────────────
-        boolean soundOn = controller == null || controller.getSound().isSoundEnabled();
+        boolean soundOn = globalSound.isSoundEnabled();
         ImageView soundIV = new ImageView(soundOn ? imgSoundOn : imgSoundOff);
-        soundIV.setFitWidth(320); soundIV.setFitHeight(100);
+        soundIV.setFitWidth(420); soundIV.setFitHeight(120);
         soundIV.setPreserveRatio(true); soundIV.setSmooth(true);
         soundIV.setPickOnBounds(false);
 
@@ -261,14 +268,14 @@ public class FxLauncher extends Application {
         addHoverScale(soundBtn, 1.04);
         addPressScale(soundBtn, 1.08);
         soundBtn.setOnMouseClicked(e -> {
-            if (controller != null) controller.getSound().toggleSound();
-            boolean on = controller == null || controller.getSound().isSoundEnabled();
-            soundIV.setImage(on ? imgSoundOn : imgSoundOff);
+            globalSound.playClick();
+            globalSound.toggleSound();
+            soundIV.setImage(globalSound.isSoundEnabled() ? imgSoundOn : imgSoundOff);
         });
 
         // ── Nút Thoát ─────────────────────────────────────────────────
         ImageView exitIV = new ImageView(imgExit);
-        exitIV.setFitWidth(280); exitIV.setFitHeight(80);
+        exitIV.setFitWidth(200); exitIV.setFitHeight(60);
         exitIV.setPreserveRatio(true); exitIV.setSmooth(true);
         exitIV.setPickOnBounds(false);
 
@@ -277,11 +284,11 @@ public class FxLauncher extends Application {
         exitBtn.setCursor(javafx.scene.Cursor.HAND);
         addHoverScale(exitBtn, 1.04);
         addPressScale(exitBtn, 1.08);
-        exitBtn.setOnMouseClicked(e -> Platform.exit());
+        exitBtn.setOnMouseClicked(e -> { globalSound.playClick(); Platform.exit(); });
 
         // ── Nút Đóng ──────────────────────────────────────────────────
         ImageView closeIV = new ImageView(imgClose);
-        closeIV.setFitWidth(280); closeIV.setFitHeight(74);
+        closeIV.setFitWidth(200); closeIV.setFitHeight(56);
         closeIV.setPreserveRatio(true); closeIV.setSmooth(true);
         closeIV.setPickOnBounds(false);
 
@@ -290,95 +297,157 @@ public class FxLauncher extends Application {
         closeBtn.setCursor(javafx.scene.Cursor.HAND);
         addHoverScale(closeBtn, 1.04);
         addPressScale(closeBtn, 1.08);
-        closeBtn.setOnMouseClicked(e -> dialog.close());
+        closeBtn.setOnMouseClicked(e -> { globalSound.playClick(); dialog.close(); });
 
         // ── Layout ────────────────────────────────────────────────────
         Label title = new Label("CÀI ĐẶT");
-        title.setTextFill(Color.web("#F2F7FF"));
-        title.setFont(Font.font("System", FontWeight.EXTRA_BOLD, 18));
+        title.setFont(Font.font("System", FontWeight.EXTRA_BOLD, 28));
+        title.setTextFill(Color.WHITE);
+        title.setStyle("-fx-effect: dropshadow(two-pass-box, rgba(0,0,0,0.5), 3, 0.0, 0, 2);");
 
         VBox box = new VBox(10, title, soundBtn, exitBtn, closeBtn);
-        box.setPadding(new Insets(10, 14, 10, 14));
+        box.setPadding(new Insets(25, 20, 25, 20));
         box.setAlignment(Pos.CENTER);
         box.setStyle(
             "-fx-background-color: linear-gradient(to bottom, #0B1626, #12253B);" +
-            "-fx-background-radius: 14;"
+            "-fx-background-radius: 14;" +
+            "-fx-border-color: #4BA3E3; -fx-border-width: 3; -fx-border-radius: 12;"
         );
 
-        dialog.setScene(new Scene(box, 320, 270));
+        StackPane transparentRoot = new StackPane(box);
+        transparentRoot.setStyle("-fx-background-color: transparent;");
+        transparentRoot.setPadding(new Insets(15));
+
+        Scene scene = new Scene(transparentRoot, 420, 360);
+        scene.setFill(Color.TRANSPARENT);
+        dialog.setScene(scene);
         dialog.showAndWait();
     }
 
     private void showHelpPages(Stage owner) {
         Stage dialog = new Stage();
         dialog.initOwner(owner);
-        dialog.initModality(Modality.APPLICATION_MODAL);
-        dialog.setTitle("Hướng dẫn");
+        dialog.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+        dialog.initStyle(javafx.stage.StageStyle.TRANSPARENT);
 
         String[] pagesTitle = {
-                "1. Bàn chơi",
-                "2. Đặt tàu",
-                "3. Lượt chơi",
-                "4. Phá hủy tàu",
-                "5. Điều kiện thắng"
+                "MỤC TIÊU TRÒ CHƠI",
+                "SẮP XẾP TÀU",
+                "CÁCH CHƠI"
         };
         String[] pagesText = {
-                "Battleship là trò chơi dành cho 2 người chơi hoặc người chơi đấu với máy. Mỗi người có một bảng lưới thường là 8 × 8 ô, được đánh dấu theo hàng (1–8) và cột (A–H).",
-                "Mỗi người đặt các tàu chiến của mình lên bảng. Tàu có thể đặt ngang hoặc dọc. Các tàu không được chồng lên nhau và đối thủ không biết vị trí tàu.",
-                "Hai người lần lượt chọn tọa độ, ví dụ B5 hoặc D7, để bắn vào bảng của đối thủ. Nếu bắn trúng tàu thì là Hit, nếu bắn trượt thì là Miss.",
-                "Khi tất cả các ô của một tàu bị bắn trúng thì tàu đó bị đánh chìm (Sunk).",
-                "Người nào phá hủy toàn bộ tàu của đối thủ trước sẽ chiến thắng."
+                "Trở thành người đầu tiên đánh chìm cả 5 tàu chiến của đối thủ.\n\n⚓ Hạm đội của bạn bao gồm:\n• Tàu Sân Bay (5 ô)\n• Tàu Thiết Giáp (4 ô)\n• Tàu Tuần Dương (3 ô)\n• Tàu Ngầm (3 ô)\n• Tàu Khu Trục (2 ô)",
+                "1. Đặt 5 tàu chiến của bạn lên lưới đại dương.\n\n2. Kéo thả chuột để di chuyển vị trí tàu.\n\n3. Nhấn phím R hoặc nhấp chuột phải để xoay ngang/dọc.\n\n4. Các tàu không được xếp chồng lên nhau.\n\n5. Bạn có thể nhấn 'Sắp xếp ngẫu nhiên' để máy tự động đặt tàu.",
+                "1. Bấm vào một ô trên lưới của đối phương để bắn đạn.\n\n2. Lượt chơi luân phiên giữa bạn và địch.\n\n3. 💥 Nếu trúng tàu: ô hiện dấu X đỏ.\n\n4. 💦 Nếu trượt: ô hiện dấu chấm xám.\n\n5. Khi tất cả các ô của một tàu bị bắn, tàu đó bị chìm.\n\n6. Hãy đánh chìm cả 5 tàu của địch để giành chiến thắng!"
         };
 
         final int[] index = {0};
 
         Label title = new Label();
-        title.setTextFill(Color.web("#F2F7FF"));
-        title.setFont(Font.font("System", FontWeight.EXTRA_BOLD, 20));
-
+        title.setTextFill(Color.WHITE);
+        title.setFont(Font.font("System", FontWeight.EXTRA_BOLD, 22));
+        title.setAlignment(Pos.CENTER);
+        title.setMaxWidth(Double.MAX_VALUE);
+        
         Label content = new Label();
         content.setWrapText(true);
-        content.setTextFill(Color.web("#D8E6F4"));
-        content.setFont(Font.font("System", 13));
-        content.setMaxWidth(420);
+        content.setTextFill(Color.WHITE);
+        content.setFont(Font.font("System", FontWeight.BOLD, 15));
+        content.setLineSpacing(6);
+        content.setAlignment(Pos.TOP_LEFT);
+        content.setMaxWidth(Double.MAX_VALUE);
+        
+        VBox textBox = new VBox(15, title, content);
+        textBox.setPadding(new Insets(25, 20, 20, 20));
+        textBox.setStyle("-fx-background-color: #0A3C66; -fx-background-radius: 8; -fx-border-color: #A3D5FF; -fx-border-width: 4; -fx-border-radius: 6;");
+        textBox.setPrefHeight(360);
+        textBox.setMinHeight(360);
 
-        VBox page = new VBox(14, title, content);
-        page.setPadding(new Insets(18));
-        page.setAlignment(Pos.TOP_LEFT);
-        page.setStyle("-fx-background-color: linear-gradient(to bottom, #0B1626, #12253B); -fx-background-radius: 18;");
+        HBox dotsBox = new HBox(8);
+        dotsBox.setAlignment(Pos.CENTER);
+        Runnable updateDots = () -> {
+            dotsBox.getChildren().clear();
+            for (int i = 0; i < pagesTitle.length; i++) {
+                javafx.scene.shape.Circle dot = new javafx.scene.shape.Circle(6);
+                dot.setFill(i == index[0] ? Color.WHITE : Color.TRANSPARENT);
+                dot.setStroke(Color.WHITE);
+                dot.setStrokeWidth(1.5);
+                dotsBox.getChildren().add(dot);
+            }
+        };
 
-        Button prev = new Button("← Trước");
-        Button next = new Button("Sau →");
-        Button close = new Button("Đóng");
-        for (Button b : new Button[]{prev, next, close}) {
-            b.setPrefHeight(34);
-            b.setStyle("-fx-background-radius: 10; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-color: rgba(255,255,255,0.14);");
+        Button prev = new Button("◀");
+        Button next = new Button("▶");
+        for (Button b : new Button[]{prev, next}) {
+            b.setFont(Font.font("System", FontWeight.BOLD, 18));
+            b.setTextFill(Color.web("#0A3C66"));
+            String btnStyle = "-fx-background-color: linear-gradient(to bottom, #FFFFFF, #B6D8F2); -fx-background-radius: 6; -fx-border-color: #0A3C66; -fx-border-radius: 4; -fx-border-width: 2;";
+            String hoverStyle = "-fx-background-color: linear-gradient(to bottom, #FFFFFF, #E6F3FF); -fx-background-radius: 6; -fx-border-color: #0A3C66; -fx-border-radius: 4; -fx-border-width: 2;";
+            b.setStyle(btnStyle);
+            b.setPrefSize(45, 35);
+            b.setCursor(javafx.scene.Cursor.HAND);
+            b.setOnMouseEntered(e -> b.setStyle(hoverStyle));
+            b.setOnMouseExited(e -> b.setStyle(btnStyle));
         }
-        close.setOnAction(e -> dialog.close());
+
+        StackPane centerNav = new StackPane(dotsBox);
+        HBox.setHgrow(centerNav, Priority.ALWAYS);
+        HBox navBox = new HBox(prev, centerNav, next);
+        navBox.setAlignment(Pos.CENTER);
+        navBox.setPadding(new Insets(0, 5, 0, 5));
+
+        Runnable updatePage = () -> {
+            title.setText(pagesTitle[index[0]]);
+            content.setText(pagesText[index[0]]);
+            prev.setVisible(index[0] > 0);
+            next.setVisible(index[0] < pagesTitle.length - 1);
+            updateDots.run();
+        };
+
         prev.setOnAction(e -> {
+            if (globalSound != null) globalSound.playClick();
             if (index[0] > 0) index[0]--;
-            updateHelpPage(title, content, pagesTitle, pagesText, index[0]);
+            updatePage.run();
         });
         next.setOnAction(e -> {
+            if (globalSound != null) globalSound.playClick();
             if (index[0] < pagesText.length - 1) index[0]++;
-            updateHelpPage(title, content, pagesTitle, pagesText, index[0]);
+            updatePage.run();
         });
 
-        HBox nav = new HBox(10, prev, next, close);
-        nav.setAlignment(Pos.CENTER_RIGHT);
-        prev.setDisable(true);
+        Label helpTitle = new Label("HƯỚNG DẪN");
+        helpTitle.setFont(Font.font("System", FontWeight.EXTRA_BOLD, 32));
+        helpTitle.setTextFill(Color.WHITE);
+        helpTitle.setStyle("-fx-effect: dropshadow(two-pass-box, rgba(0,0,0,0.4), 4, 0.0, 0, 2);");
 
-        VBox box = new VBox(14, page, nav);
-        box.setPadding(new Insets(14));
-        updateHelpPage(title, content, pagesTitle, pagesText, 0);
+        Button close = new Button("✖");
+        close.setFont(Font.font("System", FontWeight.BOLD, 16));
+        close.setTextFill(Color.WHITE);
+        close.setStyle("-fx-background-color: #E74C3C; -fx-background-radius: 8; -fx-border-color: white; -fx-border-radius: 6; -fx-border-width: 2;");
+        close.setPrefSize(36, 36);
+        close.setCursor(javafx.scene.Cursor.HAND);
+        close.setOnAction(e -> { if (globalSound != null) globalSound.playClick(); dialog.close(); });
+        
+        BorderPane topPane = new BorderPane();
+        topPane.setCenter(helpTitle);
+        topPane.setRight(close);
+        BorderPane.setAlignment(close, Pos.TOP_RIGHT);
+        BorderPane.setMargin(close, new Insets(-10, -10, 0, 0));
 
-        dialog.setScene(new Scene(box, 480, 310));
+        VBox rootBox = new VBox(20, topPane, textBox, navBox);
+        rootBox.setPadding(new Insets(20));
+        rootBox.setStyle("-fx-background-color: linear-gradient(to bottom, #59B5F4, #2475B0); -fx-background-radius: 12; -fx-border-color: white; -fx-border-radius: 10; -fx-border-width: 4;");
+        
+        StackPane transparentRoot = new StackPane(rootBox);
+        transparentRoot.setStyle("-fx-background-color: transparent;");
+        transparentRoot.setPadding(new Insets(15));
+
+        updatePage.run();
+
+        Scene scene = new Scene(transparentRoot, 420, 560);
+        scene.setFill(Color.TRANSPARENT);
+        dialog.setScene(scene);
         dialog.showAndWait();
-    }
-
-    private void updateHelpPage(Label title, Label content, String[] titles, String[] texts, int idx) {
-        title.setText(titles[idx]);
-        content.setText(texts[idx]);
     }
 
     private void startGame(Stage stage, boolean hardMode) {
