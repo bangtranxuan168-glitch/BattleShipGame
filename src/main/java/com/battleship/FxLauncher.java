@@ -1,7 +1,6 @@
 package com.battleship;
 
 import com.battleship.controller.GameController;
-import com.battleship.model.GameState;
 import com.battleship.util.Constants;
 import com.battleship.util.SoundManager;
 import com.battleship.view.FxGameView;
@@ -17,6 +16,8 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.input.KeyCode;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
@@ -38,6 +39,7 @@ public class FxLauncher extends Application {
 
     private MediaPlayer mediaPlayer;
     private GameController controller;
+    private SoundManager globalSound = new SoundManager();
     private BorderPane root;
     private FxSetupView setupView;
     private FxGameView gameView;
@@ -56,7 +58,7 @@ public class FxLauncher extends Application {
         menuLayer = new StackPane(menu);
         menuLayer.setPickOnBounds(false);
         StackPane.setAlignment(menu, Pos.BOTTOM_CENTER);
-        StackPane.setMargin(menu, new Insets(0, 0, 34, 0));
+        StackPane.setMargin(menu, new Insets(0, 0, 10, 0));
 
         StackPane stack = new StackPane(bg, root, menuLayer);
         Scene scene = new Scene(stack, Constants.WINDOW_WIDTH, Constants.WINDOW_HEIGHT);
@@ -124,38 +126,89 @@ public class FxLauncher extends Application {
     }
 
     private VBox createMenu(Stage stage) {
-        VBox panel = new VBox(12);
+        VBox panel = new VBox(6);
         panel.setAlignment(Pos.BOTTOM_CENTER);
-        panel.setPrefWidth(460);
-        panel.setMaxWidth(460);
-        panel.setPadding(new Insets(0, 24, 42, 24));
+        panel.setPrefWidth(700);
+        panel.setMaxWidth(700);
+        panel.setPadding(Insets.EMPTY);
         panel.setStyle("-fx-background-color: rgba(0,0,0,0.0);");
 
+        StackPane easy = imageButton("/ui/menu/btn_easy.png", 300, 105);
+        StackPane hard = imageButton("/ui/menu/btn_hard.png", 300, 105);
+        easy.setOnMouseClicked(e -> startGame(stage, false));
+        hard.setOnMouseClicked(e -> startGame(stage, true));
 
-        Button easy = bigBtn("DỄ", "#2C4C72", "#466784");
-        Button hard = bigBtn("KHÓ", "#455E76", "#687C8D");
-        easy.setMinWidth(162);
-        hard.setMinWidth(162);
-        easy.setPrefHeight(56);
-        hard.setPrefHeight(56);
-        easy.setOnAction(e -> startGame(stage, false));
-        hard.setOnAction(e -> startGame(stage, true));
+        addHoverScale(easy, 1.06);
+        addHoverScale(hard, 1.06);
+        addPressScale(easy, 1.10);
+        addPressScale(hard, 1.10);
 
-        HBox mainRow = new HBox(14, easy, hard);
+        HBox mainRow = new HBox(8, easy, hard);
         mainRow.setAlignment(Pos.CENTER);
 
-        Button settings = smallBtn("⚙ CÀI ĐẶT");
-        Button help = smallBtn("? HƯỚNG DẪN");
-        settings.setPrefWidth(170);
-        help.setPrefWidth(170);
-        settings.setOnAction(e -> showSettingsDialog(stage));
-        help.setOnAction(e -> showHelpPages(stage));
+        StackPane settings = imageButton("/ui/menu/btn_caidat.png", 180, 62);
+        StackPane help     = imageButton("/ui/menu/btn_huongdan.png", 180, 62);
+        addHoverScale(settings, 1.06);
+        addHoverScale(help, 1.06);
+        addPressScale(settings, 1.08);
+        addPressScale(help, 1.08);
+        settings.setOnMouseClicked(e -> showSettingsDialog(stage));
+        help.setOnMouseClicked(e -> showHelpPages(stage));
 
-        HBox secondaryRow = new HBox(10, settings, help);
+        HBox secondaryRow = new HBox(8, settings, help);
         secondaryRow.setAlignment(Pos.CENTER);
 
         panel.getChildren().addAll(mainRow, secondaryRow);
         return panel;
+    }
+
+
+    /**
+     * Tạo nút dùng PNG image.
+     * Dùng StackPane + setPickOnBounds(false) để chỉ nhận sự kiện trên pixel có thực của PNG,
+     * không kích hoạt trên vùng transparent (giải quyết cả padding và hover sai).
+     */
+    private StackPane imageButton(String resourcePath, double w, double h) {
+        Image image = new Image(getClass().getResourceAsStream(resourcePath));
+        ImageView iv = new ImageView(image);
+        iv.setPreserveRatio(true);
+        iv.setSmooth(true);
+        iv.setCache(true);
+        iv.setFitWidth(w);
+        iv.setFitHeight(h);
+        // Chỉ hit-test trên pixel thực của image (không có padding, không có transparent area)
+        iv.setPickOnBounds(false);
+
+        StackPane pane = new StackPane(iv);
+        pane.setPickOnBounds(false);  // kết hợp với ImageView → chỉ detect trên pixel PNG
+        pane.setPrefSize(w, h);
+        pane.setMaxSize(w, h);
+        pane.setMinSize(w, h);
+        pane.setStyle("-fx-background-color: transparent;");
+        pane.setCursor(javafx.scene.Cursor.HAND);
+        return pane;
+    }
+
+    private void addHoverScale(Node node, double scale) {
+        node.setOnMouseEntered(e -> {
+            node.setScaleX(scale);
+            node.setScaleY(scale);
+        });
+        node.setOnMouseExited(e -> {
+            node.setScaleX(1.0);
+            node.setScaleY(1.0);
+        });
+    }
+
+    private void addPressScale(Node node, double scale) {
+        node.setOnMousePressed(e -> {
+            node.setScaleX(scale);
+            node.setScaleY(scale);
+        });
+        node.setOnMouseReleased(e -> {
+            node.setScaleX(1.0);
+            node.setScaleY(1.0);
+        });
     }
 
     private Button bigBtn(String text, String from, String to) {
@@ -185,43 +238,74 @@ public class FxLauncher extends Application {
     private void showSettingsDialog(Stage owner) {
         Stage dialog = new Stage();
         dialog.initOwner(owner);
-        dialog.initModality(Modality.APPLICATION_MODAL);
+        dialog.initModality(javafx.stage.Modality.APPLICATION_MODAL);
         dialog.setTitle("Cài đặt");
+        dialog.setResizable(false);
 
-        VBox box = new VBox(14);
-        box.setPadding(new Insets(18));
-        box.setAlignment(Pos.CENTER_LEFT);
-        box.setStyle("-fx-background-color: linear-gradient(to bottom, #0B1626, #12253B); -fx-background-radius: 18;");
+        // ── Load ảnh ──────────────────────────────────────────────────
+        Image imgSoundOn  = new Image(getClass().getResourceAsStream("/ui/menu/sound_onl.png"));
+        Image imgSoundOff = new Image(getClass().getResourceAsStream("/ui/menu/sound_off.png"));
+        Image imgExit     = new Image(getClass().getResourceAsStream("/ui/menu/btn_exit.png"));
+        Image imgClose    = new Image(getClass().getResourceAsStream("/ui/menu/btn_close.png"));
 
-        Label title = new Label("CÀI ĐẶT");
-        title.setTextFill(Color.web("#F2F7FF"));
-        title.setFont(Font.font("System", FontWeight.EXTRA_BOLD, 22));
+        // ── Nút Âm thanh (swap ảnh khi click) ────────────────────────
+        boolean soundOn = controller == null || controller.getSound().isSoundEnabled();
+        ImageView soundIV = new ImageView(soundOn ? imgSoundOn : imgSoundOff);
+        soundIV.setFitWidth(320); soundIV.setFitHeight(100);
+        soundIV.setPreserveRatio(true); soundIV.setSmooth(true);
+        soundIV.setPickOnBounds(false);
 
-        Button soundToggle = new Button(controller != null && controller.getSound().isSoundEnabled() ? "🔊 Âm thanh: BẬT" : "🔇 Âm thanh: TẮT");
-        soundToggle.setMaxWidth(Double.MAX_VALUE);
-        soundToggle.setPrefHeight(42);
-        soundToggle.setStyle("-fx-background-radius: 10; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-color: linear-gradient(to bottom, #2B4A6A, #3B5D7E);");
-        soundToggle.setOnAction(e -> {
-            if (controller != null) {
-                controller.getSound().toggleSound();
-                soundToggle.setText(controller.getSound().isSoundEnabled() ? "🔊 Âm thanh: BẬT" : "🔇 Âm thanh: TẮT");
-            }
+        StackPane soundBtn = new StackPane(soundIV);
+        soundBtn.setPickOnBounds(false);
+        soundBtn.setCursor(javafx.scene.Cursor.HAND);
+        addHoverScale(soundBtn, 1.04);
+        addPressScale(soundBtn, 1.08);
+        soundBtn.setOnMouseClicked(e -> {
+            if (controller != null) controller.getSound().toggleSound();
+            boolean on = controller == null || controller.getSound().isSoundEnabled();
+            soundIV.setImage(on ? imgSoundOn : imgSoundOff);
         });
 
-        Button exitGame = new Button("❌ Thoát game");
-        exitGame.setMaxWidth(Double.MAX_VALUE);
-        exitGame.setPrefHeight(42);
-        exitGame.setStyle("-fx-background-radius: 10; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-color: linear-gradient(to bottom, #7A1C1C, #A53131);");
-        exitGame.setOnAction(e -> Platform.exit());
+        // ── Nút Thoát ─────────────────────────────────────────────────
+        ImageView exitIV = new ImageView(imgExit);
+        exitIV.setFitWidth(280); exitIV.setFitHeight(80);
+        exitIV.setPreserveRatio(true); exitIV.setSmooth(true);
+        exitIV.setPickOnBounds(false);
 
-        Button close = new Button("Đóng");
-        close.setMaxWidth(Double.MAX_VALUE);
-        close.setPrefHeight(36);
-        close.setStyle("-fx-background-radius: 10; -fx-text-fill: #1E2A33; -fx-font-weight: bold; -fx-background-color: rgba(255,255,255,0.55);");
-        close.setOnAction(e -> dialog.close());
+        StackPane exitBtn = new StackPane(exitIV);
+        exitBtn.setPickOnBounds(false);
+        exitBtn.setCursor(javafx.scene.Cursor.HAND);
+        addHoverScale(exitBtn, 1.04);
+        addPressScale(exitBtn, 1.08);
+        exitBtn.setOnMouseClicked(e -> Platform.exit());
 
-        box.getChildren().addAll(title, soundToggle, exitGame, close);
-        dialog.setScene(new Scene(box, 300, 240));
+        // ── Nút Đóng ──────────────────────────────────────────────────
+        ImageView closeIV = new ImageView(imgClose);
+        closeIV.setFitWidth(280); closeIV.setFitHeight(74);
+        closeIV.setPreserveRatio(true); closeIV.setSmooth(true);
+        closeIV.setPickOnBounds(false);
+
+        StackPane closeBtn = new StackPane(closeIV);
+        closeBtn.setPickOnBounds(false);
+        closeBtn.setCursor(javafx.scene.Cursor.HAND);
+        addHoverScale(closeBtn, 1.04);
+        addPressScale(closeBtn, 1.08);
+        closeBtn.setOnMouseClicked(e -> dialog.close());
+
+        // ── Layout ────────────────────────────────────────────────────
+        Label title = new Label("CÀI ĐẶT");
+        title.setTextFill(Color.web("#F2F7FF"));
+        title.setFont(Font.font("System", FontWeight.EXTRA_BOLD, 18));
+
+        VBox box = new VBox(10, title, soundBtn, exitBtn, closeBtn);
+        box.setPadding(new Insets(10, 14, 10, 14));
+        box.setAlignment(Pos.CENTER);
+        box.setStyle(
+            "-fx-background-color: linear-gradient(to bottom, #0B1626, #12253B);" +
+            "-fx-background-radius: 14;"
+        );
+
+        dialog.setScene(new Scene(box, 320, 270));
         dialog.showAndWait();
     }
 
@@ -248,107 +332,47 @@ public class FxLauncher extends Application {
 
         final int[] index = {0};
 
-        StackPane rootPane = new StackPane();
-        rootPane.setPrefSize(820, 560);
-        rootPane.setStyle("-fx-background-color: linear-gradient(to bottom, #081322, #0A1B2E, #0D2740);");
-
-        Region glow1 = new Region();
-        glow1.setStyle("-fx-background-color: rgba(77,195,247,0.10); -fx-background-radius: 999;");
-        glow1.setPrefSize(420, 420);
-        StackPane.setAlignment(glow1, Pos.TOP_LEFT);
-        StackPane.setMargin(glow1, new Insets(40, 0, 0, 50));
-
-        Region glow2 = new Region();
-        glow2.setStyle("-fx-background-color: rgba(255,215,106,0.08); -fx-background-radius: 999;");
-        glow2.setPrefSize(260, 260);
-        StackPane.setAlignment(glow2, Pos.BOTTOM_RIGHT);
-        StackPane.setMargin(glow2, new Insets(0, 70, 60, 0));
-
-        VBox card = new VBox(16);
-        card.setAlignment(Pos.TOP_CENTER);
-        card.setMaxWidth(560);
-        card.setPadding(new Insets(20, 22, 18, 22));
-        card.setStyle(
-                "-fx-background-color: rgba(8, 16, 28, 0.72);" +
-                "-fx-background-radius: 24;" +
-                "-fx-border-color: rgba(255,255,255,0.10);" +
-                "-fx-border-radius: 24;" +
-                "-fx-border-width: 1;"
-        );
-
-        HBox header = new HBox(12);
-        header.setAlignment(Pos.CENTER_LEFT);
-        Label logo = new Label("⚓");
-        logo.setFont(Font.font("System", FontWeight.EXTRA_BOLD, 24));
-        logo.setTextFill(Color.web("#FFD76A"));
-
-        VBox headerText = new VBox(2);
         Label title = new Label();
         title.setTextFill(Color.web("#F2F7FF"));
         title.setFont(Font.font("System", FontWeight.EXTRA_BOLD, 20));
-        Label subtitle = new Label("Battle Guide");
-        subtitle.setTextFill(Color.web("#8FB8D8"));
-        subtitle.setFont(Font.font("System", FontWeight.BOLD, 10));
-        headerText.getChildren().addAll(title, subtitle);
-        header.getChildren().addAll(logo, headerText);
 
         Label content = new Label();
         content.setWrapText(true);
         content.setTextFill(Color.web("#D8E6F4"));
         content.setFont(Font.font("System", 13));
-        content.setMaxWidth(510);
-        content.setLineSpacing(4);
+        content.setMaxWidth(420);
 
-        Region divider = new Region();
-        divider.setPrefHeight(1);
-        divider.setMaxWidth(Double.MAX_VALUE);
-        divider.setStyle("-fx-background-color: rgba(255,255,255,0.12);");
+        VBox page = new VBox(14, title, content);
+        page.setPadding(new Insets(18));
+        page.setAlignment(Pos.TOP_LEFT);
+        page.setStyle("-fx-background-color: linear-gradient(to bottom, #0B1626, #12253B); -fx-background-radius: 18;");
 
-        Button prev = new Button("←");
-        Button next = new Button("→");
+        Button prev = new Button("← Trước");
+        Button next = new Button("Sau →");
         Button close = new Button("Đóng");
         for (Button b : new Button[]{prev, next, close}) {
-            b.setStyle("-fx-background-radius: 12; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-color: rgba(255,255,255,0.12);");
-            b.setPrefHeight(38);
+            b.setPrefHeight(34);
+            b.setStyle("-fx-background-radius: 10; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-color: rgba(255,255,255,0.14);");
         }
-        prev.setPrefWidth(48);
-        next.setPrefWidth(48);
-        close.setPrefWidth(108);
+        close.setOnAction(e -> dialog.close());
+        prev.setOnAction(e -> {
+            if (index[0] > 0) index[0]--;
+            updateHelpPage(title, content, pagesTitle, pagesText, index[0]);
+        });
+        next.setOnAction(e -> {
+            if (index[0] < pagesText.length - 1) index[0]++;
+            updateHelpPage(title, content, pagesTitle, pagesText, index[0]);
+        });
 
         HBox nav = new HBox(10, prev, next, close);
         nav.setAlignment(Pos.CENTER_RIGHT);
+        prev.setDisable(true);
 
-        HBox dots = new HBox(8);
-        dots.setAlignment(Pos.CENTER);
-        Label[] dotLabels = new Label[pagesTitle.length];
-        for (int i = 0; i < pagesTitle.length; i++) {
-            Label d = new Label("●");
-            d.setFont(Font.font("System", FontWeight.BOLD, 10));
-            d.setTextFill(i == 0 ? Color.web("#FFD76A") : Color.web("#567086"));
-            dotLabels[i] = d;
-            dots.getChildren().add(d);
-        }
+        VBox box = new VBox(14, page, nav);
+        box.setPadding(new Insets(14));
+        updateHelpPage(title, content, pagesTitle, pagesText, 0);
 
-        Runnable refresh = () -> {
-            title.setText(pagesTitle[index[0]]);
-            content.setText(pagesText[index[0]]);
-            prev.setDisable(index[0] == 0);
-            next.setDisable(index[0] == pagesTitle.length - 1);
-            for (int i = 0; i < dotLabels.length; i++) {
-                dotLabels[i].setTextFill(i == index[0] ? Color.web("#FFD76A") : Color.web("#567086"));
-            }
-        };
-
-        prev.setOnAction(e -> { if (index[0] > 0) index[0]--; refresh.run(); });
-        next.setOnAction(e -> { if (index[0] < pagesTitle.length - 1) index[0]++; refresh.run(); });
-        close.setOnAction(e -> dialog.close());
-
-        card.getChildren().addAll(header, divider, content, dots, nav);
-        rootPane.getChildren().addAll(glow1, glow2, card);
-        StackPane.setAlignment(card, Pos.CENTER);
-        refresh.run();
-
-        dialog.setScene(new Scene(rootPane));
+        dialog.setScene(new Scene(box, 480, 310));
         dialog.showAndWait();
     }
 
@@ -361,8 +385,8 @@ public class FxLauncher extends Application {
         if (mediaPlayer != null) mediaPlayer.stop();
         showMenu(false);
 
-        SoundManager sound = new SoundManager();
-        controller = new GameController(sound);
+        // Sử dụng globalSound đã khởi tạo thay vì tạo mới
+        controller = new GameController(globalSound);
         controller.startNewGame(hardMode);
 
         setupView = new FxSetupView(controller);
