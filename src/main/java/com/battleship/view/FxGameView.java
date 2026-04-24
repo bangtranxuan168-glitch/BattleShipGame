@@ -317,7 +317,7 @@ public class FxGameView extends BorderPane {
             String key = r + ":" + c;
             int anim = hitAnimations.getOrDefault(key, -1);
 
-            Color fill = cellColor(state, hover);
+            Color fill = cellColor(state, hover, enemy);
             node.setStyle(baseCellStyle(fill));
 
             if (node instanceof StackPane) {
@@ -325,8 +325,8 @@ public class FxGameView extends BorderPane {
                 pane.getChildren().clear();
                 if (cells[r][c] == Constants.HIT || cells[r][c] == Constants.SUNK) { // Must check true state, not masked state
                     Label mark = new Label("✕");
-                    mark.setTextFill(Color.WHITE);
-                    mark.setFont(Font.font("System", FontWeight.BOLD, 18 + (anim >= 0 ? 8 : 0)));
+                    mark.setTextFill(cells[r][c] == Constants.SUNK ? Color.web("#FFCDD2") : Color.WHITE);
+                    mark.setFont(Font.font("System", FontWeight.BOLD, 36 + (anim >= 0 ? 10 : 0)));
                     if (anim >= 0) mark.setRotate((anim * 15) % 360);
                     pane.getChildren().add(mark);
                 } else if (cells[r][c] == Constants.MISS) {
@@ -335,9 +335,9 @@ public class FxGameView extends BorderPane {
                 }
 
                 if (anim >= 0) {
-                    Circle pulse = new Circle(8 + anim * 3, Color.TRANSPARENT);
+                    Circle pulse = new Circle(16 + anim * 4, Color.TRANSPARENT);
                     pulse.setStroke(Color.web("#FFD54F", Math.max(0.15, 1.0 - anim * 0.18)));
-                    pulse.setStrokeWidth(2);
+                    pulse.setStrokeWidth(3.5);
                     pane.getChildren().add(pulse);
                 }
             }
@@ -363,6 +363,7 @@ public class FxGameView extends BorderPane {
                 
                 if (ship.isSunk()) {
                     shipGraphic.setEffect(new javafx.scene.effect.ColorAdjust(0, -0.8, -0.4, 0)); // Darken sunken ships
+                    if (enemy) shipGraphic.setOpacity(0.65); // Làm tàu ẩn đi (chỉ áp dụng cho địch)
                 }
                 
                 grid.getChildren().add(shipGraphic);
@@ -400,12 +401,12 @@ public class FxGameView extends BorderPane {
         drawBoards();
     }
 
-    private Color cellColor(int state, boolean hover) {
+    private Color cellColor(int state, boolean hover, boolean enemy) {
         switch (state) {
             case Constants.SHIP: return Color.web("#546E7A");
-            case Constants.HIT: return Color.web("#E53935");
+            case Constants.HIT: return enemy ? Color.web("#E53935", 0.6) : Color.TRANSPARENT; // Bỏ màu đỏ ở sân nhà để không ám màu lên tàu
             case Constants.MISS: return Color.web("#78909C");
-            case Constants.SUNK: return Color.web("#B71C1C");
+            case Constants.SUNK: return enemy ? Color.web("#B71C1C", 0.55) : Color.TRANSPARENT; // Bỏ màu đỏ ở sân nhà
             default: return hover ? Color.web("#4FC3F7", 0.72) : Color.web("#1E5F8C", 0.82);
         }
     }
@@ -417,6 +418,6 @@ public class FxGameView extends BorderPane {
     }
 
     private String toRgba(Color c) {
-        return String.format("rgba(%d,%d,%d,%.3f)", (int) Math.round(c.getRed() * 255), (int) Math.round(c.getGreen() * 255), (int) Math.round(c.getBlue() * 255), c.getOpacity());
+        return String.format(java.util.Locale.US, "rgba(%d,%d,%d,%.3f)", (int) Math.round(c.getRed() * 255), (int) Math.round(c.getGreen() * 255), (int) Math.round(c.getBlue() * 255), c.getOpacity());
     }
 }
